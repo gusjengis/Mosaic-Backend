@@ -23,10 +23,11 @@ COPY . .
 RUN cargo build --release
 
 # --- Stage 2: Create a minimal runtime image ---
-FROM debian:buster-slim
+# Using a newer Debian image (Bookworm) with an updated glibc.
+FROM debian:bookworm-slim
 
 # (Optional) Install CA certificates if your API requires HTTPS.
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy the compiled binary from the builder stage.
 COPY --from=builder /app/target/release/mosaic-backend /usr/local/bin/mosaic-backend
