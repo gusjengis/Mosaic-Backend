@@ -1,42 +1,47 @@
-pub mod request_collection;
-pub mod request_handling;
+mod db;
+mod deserialization;
+mod export;
+mod import;
+mod log;
+mod modify;
+mod request_collection;
+mod request_handling;
 
-use std::net::{TcpListener, TcpStream};
-use std::thread;
-
+use dotenvy::dotenv;
 use request_collection::collect_http_request;
 use request_handling::process_request;
+use sqlx::{postgres::PgPoolOptions, PgPool};
+use std::env;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
 
-/// Handle an individual client connection.
-fn handle_client(mut stream: TcpStream) {
-    match collect_http_request(&mut stream) {
-        Ok(buffer) => {
-            println!("Received {} bytes:", buffer.len());
-            let request = String::from_utf8_lossy(&buffer).to_string();
-            process_request(&mut stream, request);
-        }
-        Err(e) => eprintln!("Failed to read from connection: {}", e),
-    }
-}
+#[tokio::main]
+async fn main() -> std::io::Result<()> {
+    // Optionally load environment variables.
+    dotenv().ok();
 
-fn main() -> std::io::Result<()> {
-    // Bind the listener to all interfaces on port 8080.
-    let listener = TcpListener::bind("0.0.0.0:8080")?;
-    println!("Server listening on port 8080");
+    let port = 8080;
+    let addr = format!("0.0.0.0:{}", port);
+    let listener = TcpListener::bind(&addr).await?;
+    println!("Server listening on port {}", port);
 
-    // Accept incoming connections in a loop.
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                // For a production server you’d want to handle each connection concurrently,
-                // e.g., by spawning a thread or using an async runtime.
-                thread::spawn(|| {
-                    handle_client(stream);
-                });
+    loop {
+        let (mut socket, _) = listener.accept().await?;
+        // Spawn a new asynchronous task for each connection.
+        tokio::spawn(async move {
+            match collect_http_request(&mut socket).await {
+                Ok((header, body)) => {
+                    process_request(
+                        &mut socket,
+                        String::from_utf8_lossy(&header).to_string(),
+                        String::from_utf8_lossy(&body).to_string(),
+                    )
+                    .await;
+                }
+                Err(e) => {
+                    eprintln!("Error collecting HTTP request: {}", e);
+                }
             }
-            Err(e) => eprintln!("Connection failed: {}", e),
-        }
+        });
     }
-
-    Ok(())
 }

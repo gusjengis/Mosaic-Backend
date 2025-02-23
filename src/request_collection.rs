@@ -1,19 +1,23 @@
-use std::io::{Error, ErrorKind, Read, Result};
+use std::io::{Error, ErrorKind, Result};
+use tokio::io::{AsyncRead, AsyncReadExt};
 
 /// Maximum allowed request size (here 1 MB) to protect against unbounded input.
 const MAX_REQUEST_SIZE: usize = 1024 * 1024;
 
-/// Reads from the given stream until an entire HTTP request (headers and body) is collected.
+/// Asynchronously reads from the given stream until an entire HTTP request (headers and body) is collected.
 /// This function assumes that the request uses a Content-Length header (it does not support
 /// chunked transfer encoding) and that the entire request is less than MAX_REQUEST_SIZE bytes.
-pub fn collect_http_request<R: Read>(stream: &mut R) -> Result<Vec<u8>> {
+/// Returns a tuple: (headers as Vec<u8>, body as Vec<u8>).
+pub async fn collect_http_request<R: AsyncRead + Unpin>(
+    stream: &mut R,
+) -> Result<(Vec<u8>, Vec<u8>)> {
     let mut buffer = Vec::new();
     let mut temp = [0; 1024];
     let header_end_pos: usize;
 
     // --- Step 1: Read until we have the full header (i.e. until "\r\n\r\n") ---
     loop {
-        let bytes_read = stream.read(&mut temp)?;
+        let bytes_read = stream.read(&mut temp).await?;
         if bytes_read == 0 {
             // End-of-stream reached before headers completed.
             return Err(Error::new(
@@ -37,9 +41,11 @@ pub fn collect_http_request<R: Read>(stream: &mut R) -> Result<Vec<u8>> {
         }
     }
 
+    // Extract the header bytes.
+    let headers = buffer[..header_end_pos].to_vec();
+
     // --- Step 2: Parse the headers to determine the Content-Length (if any) ---
-    let headers = &buffer[..header_end_pos];
-    let headers_str = std::str::from_utf8(headers)
+    let headers_str = std::str::from_utf8(&headers)
         .map_err(|_| Error::new(ErrorKind::InvalidData, "Headers are not valid UTF-8"))?;
 
     // Default to zero if no Content-Length header is found.
@@ -58,23 +64,24 @@ pub fn collect_http_request<R: Read>(stream: &mut R) -> Result<Vec<u8>> {
 
     // --- Step 3: Read the body if there is one ---
     let body_already_read = buffer.len() - header_end_pos;
+    let mut body = buffer[header_end_pos..].to_vec();
+
     if body_already_read < content_length {
         let remaining = content_length - body_already_read;
-        // Create a temporary buffer to read the remaining bytes.
         let mut body_buffer = vec![0; remaining];
-        stream.read_exact(&mut body_buffer)?;
-        buffer.extend_from_slice(&body_buffer);
+        stream.read_exact(&mut body_buffer).await?;
+        body.extend_from_slice(&body_buffer);
     }
 
     // Final check: if the overall request is too large, return an error.
-    if buffer.len() > MAX_REQUEST_SIZE {
+    if headers.len() + body.len() > MAX_REQUEST_SIZE {
         return Err(Error::new(
             ErrorKind::InvalidData,
             "Final request size exceeds allowed maximum",
         ));
     }
 
-    Ok(buffer)
+    Ok((headers, body))
 }
 
 /// Searches for a byte slice `needle` in the `haystack` and returns its starting index if found.
