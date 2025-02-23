@@ -16,7 +16,7 @@ pub async fn upload_log(log: Log) {
     sqlx::query!(
         "INSERT INTO logs (label, timestamp) VALUES ($1, $2)",
         log.label,
-        log.timestamp as i64,
+        log.timestamp,
     )
     .execute(&*DB_POOL)
     .await;

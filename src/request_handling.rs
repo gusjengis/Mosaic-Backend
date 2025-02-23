@@ -1,4 +1,5 @@
-use crate::modify::clear_tests;
+use crate::log::Log;
+use crate::modify::{clear_tests, delete_log};
 use crate::{export::*, import::fetch_data};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -13,8 +14,16 @@ pub async fn process_request(stream: &mut TcpStream, header: String, body: Strin
             forward_data("logUpload", body);
             response = "HTTP/1.1 200 OK\r\n\r\n".to_string();
         }
-        "/logDownload" => {
-            let res_body = fetch_data("logDownload", body).await;
+        "/logLoad" => {
+            let res_body = fetch_data("logLoad", body).await;
+            let content_length = res_body.len();
+            response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
+                content_length, res_body
+            );
+        }
+        "/logLoadRange" => {
+            let res_body = fetch_data("logLoadRange", body).await;
             let content_length = res_body.len();
             response = format!(
                 "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
@@ -23,6 +32,11 @@ pub async fn process_request(stream: &mut TcpStream, header: String, body: Strin
         }
         "/testDBConnection" => {
             fetch_data("testDBConnection", body).await;
+            response = "HTTP/1.1 200 OK\r\n\r\n".to_string();
+        }
+        "/logDelete" => {
+            let log = Log::from_http_body(body);
+            delete_log(log).await;
             response = "HTTP/1.1 200 OK\r\n\r\n".to_string();
         }
         "/clearTests" => {
