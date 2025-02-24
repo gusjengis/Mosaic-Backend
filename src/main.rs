@@ -1,26 +1,26 @@
 mod db;
-mod deserialization;
-mod export;
-mod import;
+mod endpoints;
 mod log;
-mod modify;
 mod request_collection;
 mod request_handling;
+
+use std::env;
 
 use dotenvy::dotenv;
 use request_collection::collect_http_request;
 use request_handling::process_request;
-use sqlx::{postgres::PgPoolOptions, PgPool};
-use std::env;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
+// This function does the following:
+// Loads networking parameters from .env.
+// Starts an endless loop that will listen for incoming connections.
+// When an incoming connection is found, it spawns a new task to deal with it.
+// This task will wait until the entire http request has been collected, then it will send that request off to be processed and responded to in the process_request function.
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    // Optionally load environment variables.
-    dotenv().ok();
+    dotenv().ok(); //load env vars
 
-    let port = 8080;
+    let port = env::var("PORT").expect("DATABASE_URL must be set");
     let addr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(&addr).await?;
     println!("Server listening on port {}", port);

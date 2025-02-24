@@ -1,6 +1,7 @@
-use crate::log::Log;
-use crate::modify::{clear_tests, delete_log};
-use crate::{export::*, import::fetch_data};
+use crate::endpoints::log_delete::log_delete;
+use crate::endpoints::log_load::log_load;
+use crate::endpoints::log_load_range::log_load_range;
+use crate::endpoints::log_upload::log_upload;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
@@ -8,48 +9,16 @@ pub async fn process_request(stream: &mut TcpStream, header: String, body: Strin
     let mut iter = header.split(" ");
     let _method = iter.next().unwrap().to_string();
     let endpoint = iter.next().unwrap().to_string();
-    let mut response;
-    match endpoint.as_str() {
-        "/logUpload" => {
-            forward_data("logUpload", body);
-            response = "HTTP/1.1 200 OK\r\n\r\n".to_string();
-        }
-        "/logLoad" => {
-            let res_body = fetch_data("logLoad", body).await;
-            let content_length = res_body.len();
-            response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
-                content_length, res_body
-            );
-        }
-        "/logLoadRange" => {
-            let res_body = fetch_data("logLoadRange", body).await;
-            let content_length = res_body.len();
-            response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
-                content_length, res_body
-            );
-        }
-        "/testDBConnection" => {
-            fetch_data("testDBConnection", body).await;
-            response = "HTTP/1.1 200 OK\r\n\r\n".to_string();
-        }
-        "/logDelete" => {
-            let log = Log::from_http_body(body);
-            delete_log(log).await;
-            response = "HTTP/1.1 200 OK\r\n\r\n".to_string();
-        }
-        "/clearTests" => {
-            clear_tests().await;
-            response = "HTTP/1.1 200 OK\r\n\r\n".to_string();
-        }
-        _ => {
-            response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n{}{}\r\n",
-                header, body,
-            );
-        }
-    }
+    let response = match endpoint.as_str() {
+        "/logUpload" => log_upload(body).await,
+        "/logLoad" => log_load().await,
+        "/logLoadRange" => log_load_range(body).await,
+        "/logDelete" => log_delete(body).await,
+        _ => format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n{}{}\r\n",
+            header, body
+        ),
+    };
 
     if let Err(e) = stream.write_all(response.as_bytes()).await {
         eprintln!("Failed to write to connection: {}", e);

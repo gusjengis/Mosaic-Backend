@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 pub struct Log {
     pub label: String,
     pub timestamp: i64,
@@ -13,8 +15,10 @@ impl Log {
             timestamp: timestamp.parse().unwrap(),
         }
     }
+}
 
-    pub fn to_string(&self) -> String {
-        return format!("{},{}", self.label, self.timestamp);
+impl Display for Log {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{},{}", self.label, self.timestamp)
     }
 }
