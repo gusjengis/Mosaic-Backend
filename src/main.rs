@@ -8,7 +8,7 @@ use std::env;
 
 use dotenvy::dotenv;
 use request_collection::collect_http_request;
-use request_handling::process_request;
+use request_handling::handle_http_request;
 use tokio::net::TcpListener;
 
 // This function does the following:
@@ -31,7 +31,7 @@ async fn main() -> std::io::Result<()> {
         tokio::spawn(async move {
             match collect_http_request(&mut socket).await {
                 Ok((header, body)) => {
-                    process_request(
+                    handle_http_request(
                         &mut socket,
                         String::from_utf8_lossy(&header).to_string(),
                         String::from_utf8_lossy(&body).to_string(),

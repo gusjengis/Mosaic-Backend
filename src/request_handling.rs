@@ -5,7 +5,7 @@ use crate::endpoints::log_upload::log_upload;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
-pub async fn process_request(stream: &mut TcpStream, header: String, body: String) {
+pub async fn handle_http_request(stream: &mut TcpStream, header: String, body: String) {
     let mut iter = header.split(" ");
     let _method = iter.next().unwrap().to_string();
     let endpoint = iter.next().unwrap().to_string();
