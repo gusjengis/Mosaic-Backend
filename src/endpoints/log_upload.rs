@@ -1,4 +1,4 @@
-use crate::{db::DB_POOL, log::Log};
+use crate::{db::DB_POOL, log::Log, CORS};
 
 pub async fn log_upload(body: String) -> String {
     let log = Log::from_http_body(body);
@@ -14,5 +14,8 @@ pub async fn log_upload(body: String) -> String {
         eprintln!("Error in log_upload(): {}", e);
     }
 
-    return "HTTP/1.1 200 OK\r\n\r\n".to_string();
+    format!(
+        "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: {}\r\n\r\n",
+        CORS.to_string()
+    )
 }

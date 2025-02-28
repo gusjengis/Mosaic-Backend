@@ -7,9 +7,12 @@ mod request_handling;
 use std::env;
 
 use dotenvy::dotenv;
+use once_cell::sync::Lazy;
 use request_collection::collect_http_request;
 use request_handling::handle_http_request;
 use tokio::net::TcpListener;
+
+pub static CORS: Lazy<String> = Lazy::new(|| env::var("CORS").expect("CORS policy must be set"));
 
 // This function does the following:
 // Loads networking parameters from .env.

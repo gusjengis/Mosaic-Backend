@@ -1,5 +1,5 @@
 use super::log_common::construct_log_body;
-use crate::{db::DB_POOL, log::Log};
+use crate::{db::DB_POOL, log::Log, CORS};
 use sqlx::Row;
 
 pub async fn log_load_range(body: String) -> String {
@@ -11,8 +11,8 @@ pub async fn log_load_range(body: String) -> String {
             let res_body = construct_log_body(logs);
             let content_length = res_body.len();
             return format!(
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
-                content_length, res_body
+                "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: {}\r\nContent-Length: {}\r\n\r\n{}",
+                CORS.to_string(), content_length, res_body
             );
         }
         Err(e) => {
