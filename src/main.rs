@@ -1,4 +1,5 @@
 mod db;
+mod debug_log;
 mod endpoints;
 mod log;
 mod request_collection;
@@ -6,6 +7,7 @@ mod request_handling;
 
 use std::env;
 
+use debug_log::debug;
 use dotenvy::dotenv;
 use once_cell::sync::Lazy;
 use request_collection::collect_http_request;
@@ -32,6 +34,13 @@ async fn main() -> std::io::Result<()> {
         let (mut socket, _) = listener.accept().await?;
         // Spawn a new asynchronous task for each connection.
         tokio::spawn(async move {
+            debug(format!(
+                "Incoming Connection: {}",
+                match socket.peer_addr() {
+                    Ok(ip) => ip.to_string(),
+                    Err(_) => "IP Unknown".to_string(),
+                }
+            ));
             match collect_http_request(&mut socket).await {
                 Ok((header, body)) => {
                     handle_http_request(

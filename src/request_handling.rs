@@ -1,3 +1,6 @@
+use std::fmt::format;
+
+use crate::debug_log::debug;
 use crate::endpoints::log_delete::log_delete;
 use crate::endpoints::log_load::log_load;
 use crate::endpoints::log_load_range::log_load_range;
@@ -9,6 +12,9 @@ pub async fn handle_http_request(stream: &mut TcpStream, header: String, body: S
     let mut iter = header.split(" ");
     let _method = iter.next().unwrap().to_string();
     let endpoint = iter.next().unwrap().to_string();
+    debug(format!("Endpoint: {}", endpoint));
+    debug(format!("Request:\n\n{}{}\n", header, body));
+    debug("Sending query...".to_string());
     let response = match endpoint.as_str() {
         "/logUpload" => log_upload(body).await,
         "/logLoad" => log_load().await,
@@ -19,6 +25,8 @@ pub async fn handle_http_request(stream: &mut TcpStream, header: String, body: S
             header, body
         ),
     };
+    debug("Success!".to_string());
+    debug(format!("Response:\n\n{}\n", response));
 
     if let Err(e) = stream.write_all(response.as_bytes()).await {
         eprintln!("Failed to write to connection: {}", e);

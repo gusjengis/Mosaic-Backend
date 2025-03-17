@@ -2,7 +2,6 @@ use crate::{db::DB_POOL, log::Log, CORS};
 
 pub async fn log_upload(body: String) -> String {
     let log = Log::from_http_body(body);
-
     if let Err(e) = sqlx::query!(
         "INSERT INTO logs (label, timestamp) VALUES ($1, $2)",
         log.label,

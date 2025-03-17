@@ -3,9 +3,14 @@ name = "mosaic-backend"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = []
+debug = []
+
 [dependencies]
 dotenvy = "0.15"
 tokio = { version = "1.43.0", features = ["full"] }
 sqlx = { version = "0.8.3", features = ["postgres", "runtime-tokio-native-tls"] }
 once_cell = "1.20.3"
 rand = "0.9.0"
+chrono = "0.4.40"
